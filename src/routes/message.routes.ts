@@ -1,12 +1,18 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { Client } from 'whatsapp-web.js';
-import { sendMessage } from '../controllers/message.controller';
+// Importe a nova função do controller e o multer
+import { sendMessage, sendMedia } from '../controllers/message.controller';
+import multer from 'multer';
 
-// Criamos uma função que recebe o cliente do WhatsApp como dependência
+// Configuração do Multer para usar a memória para armazenar o arquivo temporariamente
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
 export const createMessageRouter = (client: Client) => {
   const router = Router();
 
+  // Rota para enviar mensagens de texto (sem alterações)
   router.post(
     '/send-message',
     [
@@ -22,6 +28,21 @@ export const createMessageRouter = (client: Client) => {
         .withMessage('A mensagem deve ter no máximo 1000 caracteres.'),
     ],
     sendMessage(client) // Passamos o cliente para o controller
+  );
+
+  // NOVA ROTA PARA ENVIAR MÍDIA (IMAGENS, DOCUMENTOS, ETC)
+  router.post(
+    '/send-media',
+    // 1. O middleware do multer processa um único arquivo do campo "media"
+    upload.single('media'),
+    // 2. Validações do corpo da requisição
+    [
+      body('number').isMobilePhone('pt-BR').withMessage('Número de telefone inválido.'),
+      // A legenda (caption) é opcional, então não precisa de validação "notEmpty"
+      body('caption').isString().optional(),
+    ],
+    // 3. Chama o controller de envio de mídia
+    sendMedia(client)
   );
 
   return router;
